@@ -22,9 +22,13 @@ var C = {
     stateGround: 'S_GROUND',
     stateDuck: 'S_DUCK',
     runIntervalMs: 50,
+
+    //look ahead configurations
     lookAheadX: 70 + 5,
     lookAheadY: 131 - 10,
-    lookAheadBuffer: 200
+    lookAheadBuffer: 200,
+    //event
+    moveEvent: 'MOVE',
 };
 class Game{
     // imageData;
@@ -43,13 +47,16 @@ class Game{
         this._assignInputEvent();
     }
     _assignInputEvent() {
-
+        this.inputEvent.addListener(C.moveEvent, this._handleMove.bind(this));
+    }
+    _handleMove(move, timeout) {
+        this._issueMove(move, timeout);
     }
     _reloadImage() {
         this.imageData = this.ctx.getImageData(0, 0, this.width, this.height);
     }
     run(){
-        this.issueMove(C.mJump);
+        this._issueMove(C.mJump);
         clearTimeout(this.loopUpdate);
         this.loopUpdate = setInterval(this._update.bind(this), C.runIntervalMs)
     }
@@ -57,11 +64,9 @@ class Game{
         clearTimeout(this.loopUpdate);
     }
     _update() {
-        // console.log('update')
         var look = this._lookForward();
-        console.log(look)
         if (look.lookforwardDanger && look.distanceToCactus < 70){
-            this.issueMove(C.mJump);
+            this._issueMove(C.mJump);
         }
 
     }
@@ -91,7 +96,7 @@ class Game{
             a: imgData.data[dataStart + 3]
         };
     }
-    issueMove(move, timeout) {
+    _issueMove(move, timeout) {
         switch (move) {
             case C.mJump:
                 if (!timeout) {
@@ -134,7 +139,6 @@ function issueKeyPress(type, keycode) {
 
 }
 function isPixelEqual(p1, p2) {
-    console.log(p1)
     return p1.r === p2.r &&
         p1.g === p2.g &&
         p1.b === p2.b &&

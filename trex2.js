@@ -27,9 +27,22 @@ var C = {
     lookAheadX: 70 + 5,
     lookAheadY: 131 - 10,
     lookAheadBuffer: 200,
+    birdLookAheadBuffer: 100,
+    // position to look for birds in
+    midBirdX: 75 + 5,
+    midBirdY: 98 - 10,
     //event
     moveEvent: "MOVE_EVENT",
-    lookforwardDangerEvent: "LOOK_FORWARD_DANGER_EVENT"
+    duckEvent: "DUCK_EVENT",
+    lookForwardDangerEvent: "LOOK_FORWARD_DANGER_EVENT",
+    lookBirdDangerEvent: "LOOK_BIRD_DANGER_EVENT",
+    startGameEvent: "START_GAME_EVENT",
+    //broadcast
+    lookForwardDangerBroadcast: "LOOK_FORWARD_DANGERB_ROADCAST",
+    lookBirdDangerBroadcast: "LOOK_BIRD_DANGER_BROADCAST",
+    moveBroadcast: "MOVE_BROADCAST",
+    duckBroadcast: "DUCK_BROADCAST",
+    startGameBroadcast: "START_GAME_BROADCAST",
 };
 class Game{
     // imageData;
@@ -43,50 +56,100 @@ class Game{
         this.ctx = this.canvas.getContext('2d');
         this.width = this.canvas.width;
         this.height = this.canvas.height;
+        this.time = 0;
         this.inputEvent = new EventEmitter();
         this.outputEvent = new EventEmitter();
         this._assignInputEvent();
     }
+    start() {
+        this.time = 0;
+        this._broadcast(C.startGameBroadcast);
+        clearTimeout(this.loopUpdate);
+        this._issueMove(C.mJump);
+        this._run();
+    }
+    stop() {
+        this.time = 0;
+        clearTimeout(this.loopUpdate);
+    }
+    pause(){
+        clearTimeout(this.loopUpdate);
+    }
+    resume(){
+        clearTimeout(this.loopUpdate);
+        this._run();
+    }
+    _run(){
+        clearTimeout(this.loopUpdate);
+        this.loopUpdate = setInterval(this._update.bind(this), C.runIntervalMs);
+    }
     _assignInputEvent() {
         this.inputEvent.addListener(C.moveEvent, this._handleMove.bind(this));
+        this.inputEvent.addListener(C.duckEvent, this._handleDuck.bind(this));
     }
     _handleMove(move, timeout) {
+        this._issueMove(move, timeout);
+    }
+    _handleDuck(move, timeout) {
         this._issueMove(move, timeout);
     }
     _reloadImage() {
         this.imageData = this.ctx.getImageData(0, 0, this.width, this.height);
     }
-    run(){
-        this._issueMove(C.mJump);
-        clearTimeout(this.loopUpdate);
-        this.loopUpdate = setInterval(this._update.bind(this), C.runIntervalMs);
-    }
-    stop(){
-        clearTimeout(this.loopUpdate);
+    _broadcast(type, _args){
+        switch(type) {
+            case (C.lookForwardDangerBroadcast): {
+                this.outputEvent.emitEvent(C.lookForwardDangerEvent, _args);
+                break;
+            }
+            case (C.lookBirdDangerBroadcast): {
+                this.outputEvent.emitEvent(C.lookBirdDangerEvent, _args);
+                break;
+            }
+            case (C.startGameBroadcast): {
+                this.outputEvent.emitEvent(C.startGameEvent, _args);
+                break;
+            }
+            default: {
+                break;
+            }
+        }
     }
     _update() {
+        this.time += C.runIntervalMs;
         var look = this._lookForward();
-        if (look.lookforwardDanger && look.distanceToCactus < 70){
-            this._issueMove(C.mJump);
+        if (look.lookForwardDanger) {
+            this._broadcast(C.lookForwardDangerBroadcast, [look.distanceToCactus, this.time]);
         }
-
+        if (look.birdDanger) {
+            this._broadcast(C.lookBirdDangerBroadcast, [look.distanceToBird, this.time]);
+        }
     }
     _lookForward(){
         this._reloadImage();
-        var lookforwardDanger = false,
+        var lookForwardDanger = false,
             distanceToCactus = 0;
         for (var i = 0; i < C.lookAheadBuffer; i += 2) {
             if (isPixelEqual(this._getPixel(this.imageData, C.lookAheadX + i, C.lookAheadY), C.blackPixel)) {
-                lookforwardDanger = true;
+                lookForwardDanger = true;
                 distanceToCactus = i;
                 break;
             }
         }
-        if (lookforwardDanger) {
-            this.outputEvent.emitEvent(C.lookforwardDangerEvent, [lookforwardDanger, distanceToCactus]);
+        var birdDanger = false;
+        var distanceToBird = 0;
+        for (i = C.midBirdX; i < C.midBirdX + C.birdLookAheadBuffer; i += 2) {
+            if (isPixelEqual(this._getPixel(this.imageData, i, C.midBirdY), C.blackPixel)) {
+                birdDanger = true;
+                distanceToBird = i;
+                break;
+            }
         }
+
         return {
-            lookforwardDanger,
+            birdDanger,
+            distanceToBird,
+            lookForwardDanger,
             distanceToCactus
         }
     }
@@ -148,17 +211,66 @@ function isPixelEqual(p1, p2) {
         p1.b === p2.b &&
         p1.a === p2.a;
 }
-var game = new Game(document.getElementsByClassName('runner-canvas')[0]);
-game.run();
-
 class Player {
     constructor(game){
         this.game = game;
         this.inputEvent = this.game.outputEvent;
         this.outputEvent = this.game.inputEvent;
+        this._assignInputEvent();
+        this.distanceToCactus = 0;
+        this.timeLookCactus = 0;
+        this.distanceToBird = 0;
+        this.timeLookBird = 0;
+        this.velocity = 0;
+    }
+    _initParam(){
+        
     }
     _assignInputEvent() {
-        // this.inputEvent.addListener(C.lookforwardDangerEvent, this.)
+        this.inputEvent.addListener(C.lookForwardDangerEvent, this._handleLookForwardDanger.bind(this));
+        this.inputEvent.addListener(C.lookBirdDangerEvent, this._handleLookBirdDanger.bind(this));
+        this.inputEvent.addListener(C.startGameEvent, this._handleStartGame.bind(this));
+    }
+    _broadcast(type, _args){
+        switch(type) {
+            case (C.moveBroadcast): {
+                this.outputEvent.emitEvent(C.moveEvent, _args);
+                break;
+            }
+            case (C.duckBroadcast): {
+                this.outputEvent.emitEvent(C.duckEvent, _args);
+                break;
+            }
+            default: {
+                break;
+            }
+        }
+    }
+    _handleStartGame(){
+        this.distanceToCactus = 0;
+        this.timeLookCactus = 0;
+        this.distanceToBird = 0;
+        this.timeLookBird = 0;
+        this.velocity = 0;
+    }
+    _handleLookBirdDanger(distanceToBird, time){
+        // console.log('distanceToBird', distanceToBird);
+        if (distanceToBird < 120){
+            this._broadcast(C.duckBroadcast, [C.mDuck]);
+        }
+    }
+    _handleLookForwardDanger(distanceToCactus, time){
+        var distanceDelta = this.distanceToCactus - distanceToCactus;
+        var timeDelta = time - this.timeLookCactus;
+        var velocity = 0;
+        if (distanceDelta > 0){
+            velocity = distanceDelta / timeDelta;
+            this.velocity = velocity;
+        }
+        this.distanceToCactus = distanceToCactus;
+        if (distanceToCactus < 80){
+            this._broadcast(C.moveBroadcast, [C.mJump]);
+        }
     }
     _writeData() {
 
@@ -167,3 +279,6 @@ class Player {
 
     }
 }
+var game = new Game(document.getElementsByClassName('runner-canvas')[0]);
+var player = new Player(game);
+game.start();

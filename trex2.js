@@ -28,7 +28,8 @@ var C = {
     lookAheadY: 131 - 10,
     lookAheadBuffer: 200,
     //event
-    moveEvent: 'MOVE',
+    moveEvent: "MOVE_EVENT",
+    lookforwardDangerEvent: "LOOK_FORWARD_DANGER_EVENT"
 };
 class Game{
     // imageData;
@@ -58,7 +59,7 @@ class Game{
     run(){
         this._issueMove(C.mJump);
         clearTimeout(this.loopUpdate);
-        this.loopUpdate = setInterval(this._update.bind(this), C.runIntervalMs)
+        this.loopUpdate = setInterval(this._update.bind(this), C.runIntervalMs);
     }
     stop(){
         clearTimeout(this.loopUpdate);
@@ -80,6 +81,9 @@ class Game{
                 distanceToCactus = i;
                 break;
             }
+        }
+        if (lookforwardDanger) {
+            this.outputEvent.emitEvent(C.lookforwardDangerEvent, [lookforwardDanger, distanceToCactus]);
         }
         return {
             lookforwardDanger,
@@ -146,3 +150,20 @@ function isPixelEqual(p1, p2) {
 }
 var game = new Game(document.getElementsByClassName('runner-canvas')[0]);
 game.run();
+
+class Player {
+    constructor(game){
+        this.game = game;
+        this.inputEvent = this.game.outputEvent;
+        this.outputEvent = this.game.inputEvent;
+    }
+    _assignInputEvent() {
+        // this.inputEvent.addListener(C.lookforwardDangerEvent, this.)
+    }
+    _writeData() {
+
+    }
+    _loadData() {
+
+    }
+}

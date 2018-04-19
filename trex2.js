@@ -31,8 +31,8 @@ var C = {
     runIntervalMs: 50,
 
     //look ahead configurations
-    lookAheadX: 70 + 5,
-    lookAheadY: 131 - 10,
+    lookAheadX: 70 + 30,
+    lookAheadY: 120,
     lookAheadBuffer: 200,
     birdLookAheadBuffer: 100,
     // position to look for birds in
@@ -339,6 +339,7 @@ class Player {
         this.timeLookBird = 0;
         this.velocity = 0;
         if (init) {
+            window.clear();
             console.log('______INIT GENERATION_____')
             this._initTRex();
             console.log(`tRex ${this.currentTRex}/${this.tRexs.length} gen ${this.currentGen} : `, this.tRexs[this.currentTRex])
@@ -389,6 +390,7 @@ class Player {
             //     this.tRexs[i] = child;
             // } else {
                 this.tRexs[i].mutate(C.mutationRate);
+                this.tRexs[i].fitness = 0;
             // }
         }
         this.currentTRex = 0;

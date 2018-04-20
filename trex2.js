@@ -399,6 +399,7 @@ class Player {
             minFitness: minFitness,
             totalFitness: totalFitness,
             avgFitness: avgFitness,
+            improvedAvgFitness: avgFitness - this.lastAVGFitness,
             dieByCactus,
             dieByBird,
             distanceAVGToCactus,
@@ -490,9 +491,9 @@ class Player {
         console.log('save data!')
     }
     _writeChartData(){
-        console.log(`gen maxFitness minFitness totalFitness avgFitness dieByBird dieByCactus distanceAVGToCactus distanceAVGToBird`);
+        console.log(`gen maxFitness minFitness totalFitness avgFitness dieByBird dieByCactus distanceAVGToCactus distanceAVGToBird improvedAvgFitness`);
         for (let _data of this.data){
-            console.log(`${_data.gen}	${_data.maxFitness}	${_data.minFitness}	${_data.totalFitness}	${_data.avgFitness}	${_data.dieByBird}	${_data.dieByCactus}	${_data.distanceAVGToCactus}	${_data.distanceAVGToBird}`);
+            console.log(`${_data.gen}	${_data.maxFitness}	${_data.minFitness}	${_data.totalFitness}	${_data.avgFitness}	${_data.dieByBird}	${_data.dieByCactus}	${_data.distanceAVGToCactus}	${_data.distanceAVGToBird}	${_data.improvedAvgFitness}`);
         }
     }
     findTRex(gen, index){

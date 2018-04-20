@@ -8,7 +8,7 @@
 
 var C = {
     fixed: 4,
-    numGen: 20,
+    numGen: 10,
     // pixels
     blankPixel: {r: 0, g: 0, b: 0, a: 0},
     blackPixel: {r: 83, g: 83, b: 83, a: 255},
@@ -34,8 +34,8 @@ var C = {
     //look ahead configurations
     lookAheadX: 70 + 30,
     lookAheadY: 120,
-    lookAheadBuffer: 200,
-    birdLookAheadBuffer: 100,
+    lookAheadBuffer: 150,
+    birdLookAheadBuffer: 150,
     // position to look for birds in
     midBirdX: 75 + 5,
     midBirdY: 98 - 10,
@@ -152,8 +152,8 @@ class Game{
         }
         var birdDanger = false;
         var distanceToBird = 0;
-        for (i = C.midBirdX; i < C.midBirdX + C.birdLookAheadBuffer; i += 2) {
-            if (isPixelEqual(this._getPixel(this.imageData, i, C.midBirdY), C.blackPixel)) {
+        for (i = 0; i < C.birdLookAheadBuffer; i += 2) {
+            if (isPixelEqual(this._getPixel(this.imageData, C.lookAheadX + i, C.midBirdY), C.blackPixel)) {
                 birdDanger = true;
                 distanceToBird = i;
                 break;
@@ -301,6 +301,8 @@ class Player {
         this.lastAVGFitness = 0;
         this.currentMutateVolumn = C.mutateVolumn;
         this.data = [];
+        this.tRexTest = null;
+        this.isTest;
     }
     _initTRex () {
         this.tRexs = [];
@@ -377,13 +379,19 @@ class Player {
         var totalFitness = this.tRexs.reduce((total, current) => total + current.fitness, 0);
         var avgFitness = totalFitness/this.tRexs.length;
         var dieByBird = 0, dieByCactus = 0;
+        var distanceAVGToCactus = 0;
+        var distanceAVGToBird = 0;
         for (let TREX of this.tRexs) {
+            distanceAVGToCactus += TREX.calcDistanceToJump(25, C.cactusDanger);
+            distanceAVGToBird += TREX.calcDistanceToJump(25, C.birdDanger);
             if (TREX.lastObjectSeeBeforeDie == C.objBird){
                 dieByBird++;
             } else if (TREX.lastObjectSeeBeforeDie == C.objCactus){
                 dieByCactus++;
             }
         }
+        distanceAVGToCactus = distanceAVGToCactus / this.tRexs.length;
+        distanceAVGToBird = distanceAVGToBird / this.tRexs.length;
         this._writeData({
             gen: this.currentGen,
             tRexs: this.tRexs,
@@ -393,10 +401,16 @@ class Player {
             avgFitness: avgFitness,
             dieByCactus,
             dieByBird,
+            distanceAVGToCactus,
+            distanceAVGToBird
         })
         console.log('______END GENERATION_____');
         console.log('maxFitness', maxFitness);
         console.log('minFitness', minFitness);
+        console.log('dieByCactus', dieByCactus);
+        console.log('dieByBird', dieByBird);
+        console.log('distanceAVGToCactus', distanceAVGToCactus);
+        console.log('distanceAVGToBird', distanceAVGToBird);
         console.log('totalFitness', totalFitness);
         console.log('avgFitness', avgFitness);
         console.log('improved avg fitness', avgFitness - this.lastAVGFitness);
@@ -439,6 +453,9 @@ class Player {
             velocity = velocity;
         }
         var calcDistanceToJump = this.tRexs[this.currentTRex].calcDistanceToJump(velocity, C.birdDanger);
+        if (this.isTest && this.tRexTest){
+            calcDistanceToJump = this.tRexTest.calcDistanceToJump(velocity, C.birdDanger);
+        }
         this.distanceToBird = distanceToBird;
         this.tRexs[this.currentTRex].lastObjectSeeBeforeDie = C.objBird;
         if ( distanceToBird < calcDistanceToJump ) {
@@ -455,6 +472,9 @@ class Player {
             velocity = velocity;
         }
         var calcDistanceToJump = this.tRexs[this.currentTRex].calcDistanceToJump(velocity, C.cactusDanger);
+        if (this.isTest && this.tRexTest){
+            calcDistanceToJump = this.tRexs[this.currentTRex].calcDistanceToJump(velocity, C.cactusDanger);
+        }
         this.distanceToCactus = distanceToCactus;
         this.tRexs[this.currentTRex].lastObjectSeeBeforeDie = C.objCactus;
         if ( distanceToCactus < calcDistanceToJump ) {
@@ -470,12 +490,33 @@ class Player {
         console.log('save data!')
     }
     _writeChartData(){
-        console.log(`gen maxFitness minFitness totalFitness avgFitness dieByBird dieByCactus`);
+        console.log(`gen maxFitness minFitness totalFitness avgFitness dieByBird dieByCactus distanceAVGToCactus distanceAVGToBird`);
         for (let _data of this.data){
-            console.log(`${_data.gen}	${_data.maxFitness}	${_data.minFitness}	${_data.totalFitness}	${_data.avgFitness}	${_data.dieByBird}	${_data.dieByCactus}`);
+            console.log(`${_data.gen}	${_data.maxFitness}	${_data.minFitness}	${_data.totalFitness}	${_data.avgFitness}	${_data.dieByBird}	${_data.dieByCactus}	${_data.distanceAVGToCactus}	${_data.distanceAVGToBird}`);
         }
     }
-    
+    findTRex(gen, index){
+        var _TRex = null;
+        for(let _data of this.data){
+            if (_data.gen == gen) {
+                var _tRexs = _data.tRexs;
+                if (_tRexs[index]){
+                    _TRex = _tRexs[index];
+                    console.log('Data');                    
+                    console.log(`player.test(${_TRex.paramCactus.a}, ${_TRex.paramCactus.b}, ${_TRex.paramBird.a}, ${_TRex.paramBird.b})`)
+                }
+            }
+        }
+        return _TRex;
+    }
+    test(a, b, c, d){
+        this.isTest = true;
+        this.tRexTest = new TRex({a: a, b: b}, {a: c, b: d}, 0);
+    }
+    _stopTest(){
+        this.isTest = false;
+        this.tRexTest = null;
+    }
     _loadData() {
 
     }

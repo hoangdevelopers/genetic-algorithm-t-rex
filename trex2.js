@@ -376,13 +376,23 @@ class Player {
         var minFitness = Math.min(...this.tRexs.map(tRex => tRex.fitness));
         var totalFitness = this.tRexs.reduce((total, current) => total + current.fitness, 0);
         var avgFitness = totalFitness/this.tRexs.length;
+        var dieByBird = 0, dieByCactus = 0;
+        for (let TREX of this.tRexs) {
+            if (TREX.lastObjectSeeBeforeDie == C.objBird){
+                dieByBird++;
+            } else if (TREX.lastObjectSeeBeforeDie == C.objCactus){
+                dieByCactus++;
+            }
+        }
         this._writeData({
             gen: this.currentGen,
             tRexs: this.tRexs,
             maxFitness: maxFitness,
             minFitness: minFitness,
             totalFitness: totalFitness,
-            avgFitness: avgFitness
+            avgFitness: avgFitness,
+            dieByCactus,
+            dieByBird,
         })
         console.log('______END GENERATION_____');
         console.log('maxFitness', maxFitness);
@@ -460,8 +470,9 @@ class Player {
         console.log('save data!')
     }
     _writeChartData(){
+        console.log(`gen maxFitness minFitness totalFitness avgFitness dieByBird dieByCactus`);
         for (let _data of this.data){
-            console.log(`${_data.gen}	${_data.maxFitness}	${_data.minFitness}	${_data.totalFitness}	${_data.avgFitness}`);
+            console.log(`${_data.gen}	${_data.maxFitness}	${_data.minFitness}	${_data.totalFitness}	${_data.avgFitness}	${_data.dieByBird}	${_data.dieByCactus}`);
         }
     }
     

@@ -50,6 +50,9 @@ var C = {
     moveBroadcast: "MOVE_BROADCAST",
     duckBroadcast: "DUCK_BROADCAST",
     startGameBroadcast: "START_GAME_BROADCAST",
+    //type danger
+    birdDanger: "BIRD_DANGER",
+    cactusDanger: "CACTUS_DANGER"
 };
 class Game{
     // imageData;
@@ -234,22 +237,23 @@ function strip(number) {
 }
 // distance = velocity
 class TRex {
-    constructor(a, b, gen) {
-        this.a = a;
-        this.b = b;
+    constructor(paramCactus, paramBird, gen) {
+        this.paramCactus = paramCactus;
+        this.paramBird = paramBird;
         this.gen = gen;
         this.fitness = 0;
     }
     crossOver(tRex){
         console.log('crossOver', this, tRex)
-        var a = Math.random() < 0.5 ? this.a : tRex.a;
-        var b = Math.random() < 0.5 ? this.b : tRex.b;
-        console.log(a, b);
-        return new TRex(a, b, this.gen + 1);
+        var paramCactus = Math.random() < 0.5 ? this.paramCactus : tRex.paramCactus;
+        var paramBird = Math.random() < 0.5 ? this.paramBird : tRex.paramBird;
+        return new TRex(paramCactus, paramBird, this.gen + 1);
     }
     mutate(mutateRate){
-        this.a = Math.random() < mutateRate ? this._randomAround(this.a, C.mutateVolumn) : this.a;
-        this.b = Math.random() < mutateRate ? this._randomAround(this.b, C.mutateVolumn) : this.b;
+        this.paramCactus.a = Math.random() < mutateRate ? this._randomAround(this.paramCactus.a, C.mutateVolumn) : this.paramCactus.a;
+        this.paramCactus.b = Math.random() < mutateRate ? this._randomAround(this.paramCactus.b, C.mutateVolumn) : this.paramCactus.b;
+        this.paramBird.a = Math.random() < mutateRate ? this._randomAround(this.paramBird.a, C.mutateVolumn) : this.paramBird.a;
+        this.paramBird.b = Math.random() < mutateRate ? this._randomAround(this.paramBird.b, C.mutateVolumn) : this.paramBird.b;
     }
     _random(max, min) {
         return (Math.random() * (max-min) + min);
@@ -262,8 +266,12 @@ class TRex {
     jump() {
         this.fitness += 1;
     }
-    calcDistanceToJump(v){
-        var calcDistanceToJump = this.a * v + this. b;
+    calcDistanceToJump(v, type){
+        if (type == C.birdDanger){
+            var calcDistanceToJump = this.paramBird.a * v + this.paramBird.b;
+        } else if (type == C.cactusDanger){
+            var calcDistanceToJump = this.paramCactus.a * v + this.paramCactus.b;
+        }
         return calcDistanceToJump;
     }
 }
@@ -274,11 +282,11 @@ class Player {
         this.outputEvent = this.game.inputEvent;
         this.tRexEvent = new EventEmitter();
         this._assignInputEvent();
+        this.distanceToBird = 0;
         this.distanceToCactus = 0;
         this.timeLookCactus = 0;
         this.distanceToBird = 0;
         this.timeLookBird = 0;
-        this.velocity = 0;
         this.tRexs = [];
         this.currentTRex = 0;
         this.currentGen = 0;
@@ -288,8 +296,7 @@ class Player {
     _initTRex () {
         this.tRexs = [];
         for (let i = 0; i< C.numGen; i++){
-            var _tRex = new TRex(this._random(20, -20), this._random(20, -20), this.currentGen);
-            // var _tRex = new TRex(3.5, 0.01, 0)
+            var _tRex = new TRex({a: this._random(20, -20), b: this._random(20, -20)}, {a: this._random(20, -20), b: this._random(20, -20)}, this.currentGen);
             this.tRexs.push(_tRex);
         }
         console.log(`Generation ${this.currentGen} tRex`, this.tRexs);
@@ -337,7 +344,6 @@ class Player {
         this.timeLookCactus = 0;
         this.distanceToBird = 0;
         this.timeLookBird = 0;
-        this.velocity = 0;
         if (init) {
             window.clear();
             console.log('______INIT GENERATION_____')
@@ -382,16 +388,16 @@ class Player {
 
         for (let i = 0; i < this.tRexs.length; i ++ ){
 
-            // var partnerA = this._acceptReject(weighted);
-            // var partnerB = this._acceptReject(weighted);
-            // if (partnerA && partnerB){
-            //     var child = partnerA.crossOver(partnerB);
-            //     child.mutate(C.mutationRate);
-            //     this.tRexs[i] = child;
-            // } else {
+            var partnerA = this._acceptReject(weighted);
+            var partnerB = this._acceptReject(weighted);
+            if (partnerA && partnerB){
+                var child = partnerA.crossOver(partnerB);
+                child.mutate(C.mutationRate);
+                this.tRexs[i] = child;
+            } else {
                 this.tRexs[i].mutate(C.mutationRate);
                 this.tRexs[i].fitness = 0;
-            // }
+            }
         }
         this.currentTRex = 0;
         this.currentGen += 1;
@@ -401,8 +407,18 @@ class Player {
     }
     _handleLookBirdDanger(distanceToBird, time){
         // console.log('distanceToBird', distanceToBird);
-        if (distanceToBird < 120){
-            this._broadcast(C.duckBroadcast, [C.mDuck]);
+        var distanceDelta = this.distanceToBird - distanceToBird;
+        var timeDelta = time - this.timeLookBird;
+        var velocity = 0;
+        if (distanceDelta > 0){
+            velocity = strip(distanceDelta / timeDelta);
+            velocity = velocity;
+        }
+        var calcDistanceToJump = this.tRexs[this.currentTRex].calcDistanceToJump(velocity, C.birdDanger);
+        this.distanceToBird = distanceToBird;
+        if ( distanceToBird < calcDistanceToJump ) {
+            this._broadcast(C.moveBroadcast, [C.mDuck]);
+            this.tRexs[this.currentTRex].jump();
         }
     }
     _handleLookForwardDanger(distanceToCactus, time){
@@ -411,9 +427,9 @@ class Player {
         var velocity = 0;
         if (distanceDelta > 0){
             velocity = strip(distanceDelta / timeDelta);
-            this.velocity = velocity;
+            velocity = velocity;
         }
-        var calcDistanceToJump = this.tRexs[this.currentTRex].calcDistanceToJump(this.velocity);
+        var calcDistanceToJump = this.tRexs[this.currentTRex].calcDistanceToJump(velocity, C.cactusDanger);
         this.distanceToCactus = distanceToCactus;
         if ( distanceToCactus < calcDistanceToJump ) {
             this._broadcast(C.moveBroadcast, [C.mJump]);

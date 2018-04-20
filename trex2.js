@@ -17,8 +17,8 @@ var C = {
     // position of dino eye in running state
     reloadY: 99,
     //
-    mutationRate: 0.9,
-    mutateVolumn: 0.05,
+    mutationRate: 1,
+    mutateVolumn: 0.02,
     // moves
     mJump: 'M_JUMP',
     mDuck: 'M_DUCK',
@@ -363,6 +363,7 @@ class Player {
         this._writeData({
             gen: this.currentGen,
             tRexs: this.tRexs,
+            minFitness: minFitness,
             maxFitness: maxFitness,
             totalFitness: totalFitness,
             avgFitness: avgFitness
@@ -426,6 +427,11 @@ class Player {
     _writeData(data) {
         this.data.push(data);
         console.log('save data!')
+    }
+    _writeChartData(){
+        for (let _data of this.data){
+            console.log(`${_data.gen}	${_data.maxFitness}	${_data.minFitness}	${_data.totalFitness}	${_data.avgFitness}`);
+        }
     }
     _loadData() {
 

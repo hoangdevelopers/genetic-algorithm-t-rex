@@ -17,7 +17,7 @@ var C = {
     // position of dino eye in running state
     reloadY: 99,
     //
-    mutationRate: 0.9,
+    mutationRate: 0.5,
     mutateVolumn: 0.05,
     // moves
     mJump: 'M_JUMP',
@@ -249,11 +249,11 @@ class TRex {
         var paramBird = Math.random() < 0.5 ? this.paramBird : tRex.paramBird;
         return new TRex(paramCactus, paramBird, this.gen + 1);
     }
-    mutate(mutateRate){
-        this.paramCactus.a = Math.random() < mutateRate ? this._randomAround(this.paramCactus.a, C.mutateVolumn) : this.paramCactus.a;
-        this.paramCactus.b = Math.random() < mutateRate ? this._randomAround(this.paramCactus.b, C.mutateVolumn) : this.paramCactus.b;
-        this.paramBird.a = Math.random() < mutateRate ? this._randomAround(this.paramBird.a, C.mutateVolumn) : this.paramBird.a;
-        this.paramBird.b = Math.random() < mutateRate ? this._randomAround(this.paramBird.b, C.mutateVolumn) : this.paramBird.b;
+    mutate(mutateRate, currentMutateVolumn){
+        this.paramCactus.a = Math.random() < mutateRate ? this._randomAround(this.paramCactus.a, currentMutateVolumn) : this.paramCactus.a;
+        this.paramCactus.b = Math.random() < mutateRate ? this._randomAround(this.paramCactus.b, currentMutateVolumn) : this.paramCactus.b;
+        this.paramBird.a = Math.random() < mutateRate ? this._randomAround(this.paramBird.a, currentMutateVolumn) : this.paramBird.a;
+        this.paramBird.b = Math.random() < mutateRate ? this._randomAround(this.paramBird.b, currentMutateVolumn) : this.paramBird.b;
     }
     _random(max, min) {
         return (Math.random() * (max-min) + min);
@@ -291,6 +291,7 @@ class Player {
         this.currentTRex = 0;
         this.currentGen = 0;
         this.lastAVGFitness = 0;
+        this.currentMutateVolumn = C.mutateVolumn;
         this.data = [];
     }
     _initTRex () {
@@ -370,6 +371,7 @@ class Player {
             gen: this.currentGen,
             tRexs: this.tRexs,
             maxFitness: maxFitness,
+            minFitness: minFitness,
             totalFitness: totalFitness,
             avgFitness: avgFitness
         })
@@ -385,22 +387,25 @@ class Player {
             tr.weight = tr.fitness/totalFitness;
             return tr;
         });
-
+        
         for (let i = 0; i < this.tRexs.length; i ++ ){
 
             var partnerA = this._acceptReject(weighted);
             var partnerB = this._acceptReject(weighted);
             if (partnerA && partnerB){
                 var child = partnerA.crossOver(partnerB);
-                child.mutate(C.mutationRate);
+                child.mutate(C.mutationRate, this.currentMutateVolumn);
                 this.tRexs[i] = child;
             } else {
-                this.tRexs[i].mutate(C.mutationRate);
+                this.tRexs[i].mutate(C.mutationRate, this.currentMutateVolumn);
                 this.tRexs[i].fitness = 0;
             }
         }
         this.currentTRex = 0;
         this.currentGen += 1;
+        if (this.currentGen % 10 == 0){
+            this.currentMutateVolumn %= 1.5;
+        }
     }
     _handleLossGame(){
         
@@ -436,17 +441,30 @@ class Player {
             this.tRexs[this.currentTRex].jump();
         }
     }
-    _getData(){
+    _getData() {
         return JSON.stringify(this.data);
     }
     _writeData(data) {
         this.data.push(data);
         console.log('save data!')
     }
+    _writeChartData(){
+        for (let _data of this.data){
+            console.log(`${_data.gen}	${_data.maxFitness}	${_data.minFitness}	${_data.totalFitness}	${_data.avgFitness}`);
+        }
+    }
+    
     _loadData() {
 
     }
+    // gen: this.currentGen,
+    // tRexs: this.tRexs,
+    // maxFitness: maxFitness,
+    // totalFitness: totalFitness,
+    // avgFitness: avgFitness
+
 }
 var game = new Game(document.getElementsByClassName('runner-canvas')[0]);
 var player = new Player(game);
 game.start(true);
+

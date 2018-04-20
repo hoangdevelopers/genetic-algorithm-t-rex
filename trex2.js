@@ -241,23 +241,25 @@ function strip(number) {
 }
 // distance = velocity
 class TRex {
-    constructor(paramCactus, paramBird, gen) {
+    constructor(paramCactus, paramBird, gen, lastObjectSeeBeforeDie) {
         this.paramCactus = paramCactus;
         this.paramBird = paramBird;
         this.gen = gen;
         this.fitness = 0;
+        this.lastObjectSeeBeforeDie = lastObjectSeeBeforeDie;
     }
     crossOver(tRex){
         console.log('crossOver', this, tRex)
         var paramCactus = Math.random() < 0.5 ? this.paramCactus : tRex.paramCactus;
         var paramBird = Math.random() < 0.5 ? this.paramBird : tRex.paramBird;
-        return new TRex(paramCactus, paramBird, this.gen + 1);
+        var lastObjectSeeBeforeDie = Math.random() < 0.5 ? this.lastObjectSeeBeforeDie : tRex.lastObjectSeeBeforeDie;
+        return new TRex(paramCactus, paramBird, this.gen + 1, lastObjectSeeBeforeDie);
     }
-    mutate(mutateRate, currentMutateVolumn, lastObjectSeeBeforeDie){
-        if (lastObjectSeeBeforeDie == C.objBird){
+    mutate(mutateRate, currentMutateVolumn){
+        if (this.lastObjectSeeBeforeDie == C.objBird){
             this.paramBird.a = Math.random() < mutateRate ? this._randomAround(this.paramBird.a, currentMutateVolumn) : this.paramBird.a;
             this.paramBird.b = Math.random() < mutateRate ? this._randomAround(this.paramBird.b, currentMutateVolumn) : this.paramBird.b;
-        } else if (lastObjectSeeBeforeDie == C.objCactus) {
+        } else if (this.lastObjectSeeBeforeDie == C.objCactus) {
             this.paramCactus.a = Math.random() < mutateRate ? this._randomAround(this.paramCactus.a, currentMutateVolumn) : this.paramCactus.a;
             this.paramCactus.b = Math.random() < mutateRate ? this._randomAround(this.paramCactus.b, currentMutateVolumn) : this.paramCactus.b;
         }
@@ -292,14 +294,12 @@ class Player {
         this.distanceToBird = 0;
         this.distanceToCactus = 0;
         this.timeLookCactus = 0;
-        this.distanceToBird = 0;
         this.timeLookBird = 0;
         this.tRexs = [];
         this.currentTRex = 0;
         this.currentGen = 0;
         this.lastAVGFitness = 0;
         this.currentMutateVolumn = C.mutateVolumn;
-        this.lastObjectSeeBeforeDie = null;
         this.data = [];
     }
     _initTRex () {
@@ -354,7 +354,6 @@ class Player {
         this.distanceToBird = 0;
         this.timeLookBird = 0;
         this.velocity = 0;
-        this.lastObjectSeeBeforeDie = null;
         if (init) {
             window.clear();
             console.log('______INIT GENERATION_____')
@@ -362,7 +361,7 @@ class Player {
             console.log(`tRex ${this.currentTRex}/${this.tRexs.length} gen ${this.currentGen} : `, this.tRexs[this.currentTRex])
             return;
         }
-        console.log(`tRex die: ${this.tRexs[this.currentTRex].fitness}`);
+        console.log(`tRex die: ${this.tRexs[this.currentTRex].fitness} ${this.tRexs[this.currentTRex].lastObjectSeeBeforeDie}`);
         console.log('_____________');
         this.currentTRex += 1;
         if ( this.currentTRex < this.tRexs.length ){
@@ -404,12 +403,13 @@ class Player {
             var partnerB = this._acceptReject(weighted);
             if (partnerA && partnerB){
                 var child = partnerA.crossOver(partnerB);
-                child.mutate(C.mutationRate, this.currentMutateVolumn, this.lastObjectSeeBeforeDie);
+                child.mutate(C.mutationRate, this.currentMutateVolumn);
                 this.tRexs[i] = child;
             } else {
-                this.tRexs[i].mutate(C.mutationRate, this.currentMutateVolumn, this.lastObjectSeeBeforeDie);
+                this.tRexs[i].mutate(C.mutationRate, this.currentMutateVolumn);
                 this.tRexs[i].fitness = 0;
             }
+            this.tRexs[i].lastObjectSeeBeforeDie = null;
         }
         this.currentTRex = 0;
         this.currentGen += 1;
@@ -421,7 +421,6 @@ class Player {
         
     }
     _handleLookBirdDanger(distanceToBird, time){
-        // console.log('distanceToBird', distanceToBird);
         var distanceDelta = this.distanceToBird - distanceToBird;
         var timeDelta = time - this.timeLookBird;
         var velocity = 0;
@@ -431,10 +430,10 @@ class Player {
         }
         var calcDistanceToJump = this.tRexs[this.currentTRex].calcDistanceToJump(velocity, C.birdDanger);
         this.distanceToBird = distanceToBird;
+        this.tRexs[this.currentTRex].lastObjectSeeBeforeDie = C.objBird;
         if ( distanceToBird < calcDistanceToJump ) {
             this._broadcast(C.moveBroadcast, [C.mDuck]);
             this.tRexs[this.currentTRex].jump();
-            this.lastObjectSeeBeforeDie = C.objBird;
         }
     }
     _handleLookForwardDanger(distanceToCactus, time){
@@ -447,10 +446,10 @@ class Player {
         }
         var calcDistanceToJump = this.tRexs[this.currentTRex].calcDistanceToJump(velocity, C.cactusDanger);
         this.distanceToCactus = distanceToCactus;
+        this.tRexs[this.currentTRex].lastObjectSeeBeforeDie = C.objCactus;
         if ( distanceToCactus < calcDistanceToJump ) {
             this._broadcast(C.moveBroadcast, [C.mJump]);
             this.tRexs[this.currentTRex].jump();
-            this.lastObjectSeeBeforeDie = C.objCactus;
         }
     }
     _getData() {
